@@ -11,14 +11,18 @@ typedef enum {
     INSTURCTION_TYPE_SUBTRACT,
     INSTRUCTION_TYPE_JUMP,
     INSTRUCTION_TYPE_POP,
-    INSTRUCTION_TYPE_JLT,
-    INSTRUCTION_TYPE_JGT,
+    INSTRUCTION_TYPE_LT,
+    INSTRUCTION_TYPE_GT,
+    INSTRUCTION_TYPE_EQ,
     INSTRUCTION_TYPE_INC,
     INSTRUCTION_TYPE_DEC,
     INSTRUCTION_TYPE_SELECT_REGISTER,
     INSTRUCTION_TYPE_STORE_REGISTER,
     INSTRUCTION_TYPE_ADD_REGISTER,
-    INSTRUCTION_TYPE_SUBTRACT_REGISTER
+    INSTRUCTION_TYPE_SUBTRACT_REGISTER,
+    INSTRUCTION_TYPE_JLT,
+    INSTRUCTION_TYPE_JGT,
+    INSTRUCTION_TYPE_JEQ
 
 } instruction_type;
 
@@ -41,6 +45,20 @@ typedef struct {
 } instruction;
 
 
+typedef union{
+
+    uint32_t flag;
+
+    struct{
+
+        uint8_t less_than;
+        uint8_t greater_than;
+        uint8_t equal_to;
+        uint8_t dummy;
+
+    };
+
+}cmpr_flags;
 
 typedef struct {
 
@@ -49,6 +67,7 @@ typedef struct {
     int program_counter;
     int registers[10];
     int current_register;
+    cmpr_flags compare_flag;
     instruction current_instruction;
 
 } virtual_machine;
@@ -57,9 +76,16 @@ virtual_machine machine = {.stack_pos = -1 , .program_counter = 0};
 
 instruction inst_list[] = {
 
-    {.operand = 1 , .type = INSTRUCTION_TYPE_SELECT_REGISTER},
-    {.operand = 10 , .type = INSTRUCTION_TYPE_STORE_REGISTER}
-    
+    {.operand = 1   ,     .type = INSTRUCTION_TYPE_SELECT_REGISTER},              //0x0
+    {.operand = 10  ,    .type = INSTRUCTION_TYPE_STORE_REGISTER},              //0x1
+    {.operand = 15  ,     .type = INSTRUCTION_TYPE_EQ},                           //0x2
+    {.operand = 9   ,      .type = INSTRUCTION_TYPE_JEQ},                           //0x3
+    {.operand = 1   ,      .type = INSTRUCTION_TYPE_PUSH},                          //0x4
+    {.operand = 3  ,      .type = INSTRUCTION_TYPE_PUSH},                           //0x5
+    {.operand = 1   ,       .type = INSTRUCTION_TYPE_SELECT_REGISTER},              //0x6
+    {.operand = 1   ,       .type = INSTRUCTION_TYPE_ADD_REGISTER},                 //0x7
+    {.operand = 2   ,       .type = INSTRUCTION_TYPE_JUMP},                          //0x8
+    {.operand = 2   ,     .type = INSTRUCTION_TYPE_PUSH}                          //0x9
 };
 
 err execute_instructions(instruction *inst){
@@ -169,57 +195,29 @@ err execute_instructions(instruction *inst){
 
             break;
         
-        case INSTRUCTION_TYPE_JGT:
+        case INSTRUCTION_TYPE_GT:
 
+            if(inst->operand > machine.registers[machine.current_register]){
 
-            if(inst->operand > (SIZE_OF(inst_list) - 1) ){
+                machine.compare_flag.greater_than = 1;
 
-                return ERR_UNKNOWN_INSTRUCTION;
+            } else 
+                machine.compare_flag.less_than = 0;
 
-            }
-
-            if(machine.stack_pos < 1){
-
-                return ERR_INSUFICIENT_OPERAND_AVIALABLE;
-
-            }
-
-            if(machine.stack[machine.stack_pos - 1] > machine.stack[machine.stack_pos]){
-
-                machine.program_counter = inst->operand;
-
-            }else {
-
-                machine.program_counter++;
-
-            }
+            machine.program_counter++;
 
             break;
         
-        case INSTRUCTION_TYPE_JLT:
+        case INSTRUCTION_TYPE_LT:
 
+            if(inst->operand < machine.registers[machine.current_register]){
 
-            if(inst->operand > (SIZE_OF(inst_list) - 1) ){
+                machine.compare_flag.less_than = 1;
 
-                return ERR_UNKNOWN_INSTRUCTION;
+            } else 
+                machine.compare_flag.less_than = 0;
 
-            }
-
-            if(machine.stack_pos < 1){
-
-                return ERR_INSUFICIENT_OPERAND_AVIALABLE;
-
-            }
-
-            if(machine.stack[machine.stack_pos - 1] < machine.stack[machine.stack_pos]){
-
-                machine.program_counter = inst->operand;
-
-            } else {
-
-                machine.program_counter++;
-
-            }
+            machine.program_counter++;
 
             break;
         case INSTRUCTION_TYPE_SELECT_REGISTER:
@@ -254,7 +252,63 @@ err execute_instructions(instruction *inst){
 
             machine.program_counter++;
             break;
+        case INSTRUCTION_TYPE_JGT:
+
+            if(inst->operand > SIZE_OF(inst_list) && inst->operand < 0){
+
+                return ERR_UNKNOWN_INSTRUCTION;
+
+            }
+
+            if(machine.compare_flag.greater_than){
+
+                machine.program_counter = inst->operand;
+
+            } else
+                machine.program_counter++;
+
+            break;
+        case INSTRUCTION_TYPE_JLT:
             
+            if(inst->operand > SIZE_OF(inst_list) && inst->operand < 0){
+
+                return ERR_UNKNOWN_INSTRUCTION;
+
+            }
+
+            if(machine.compare_flag.less_than){
+
+                machine.program_counter = inst->operand;
+
+            } else 
+                machine.program_counter++;
+
+            break;
+        case INSTRUCTION_TYPE_EQ:
+            if(machine.registers[machine.current_register] == inst->operand){
+
+                machine.compare_flag.equal_to = 1;
+
+            } else 
+                machine.compare_flag.equal_to = 0;
+                
+            machine.program_counter++;
+            break;
+        case INSTRUCTION_TYPE_JEQ:
+            
+            if(inst->operand > SIZE_OF(inst_list) && inst->operand < 0){
+
+                return ERR_UNKNOWN_INSTRUCTION;
+
+            }
+
+            if(machine.compare_flag.equal_to){
+
+                machine.program_counter = inst->operand;
+
+            } else 
+                machine.program_counter++;
+
     }
 
     return ERR_INSTRUCTION_OK;
@@ -312,17 +366,32 @@ void print_inst(instruction inst){
         case INSTRUCTION_TYPE_DEC:
             fprintf(stderr,"%s %d\n","DEC",inst.operand);
             break;
-        case INSTRUCTION_TYPE_JGT:
+        case INSTRUCTION_TYPE_GT:
             fprintf(stderr,"%s %d\n","JGT",inst.operand);
+            fprintf(stderr,"greater than flag : %d \n",machine.compare_flag.greater_than);
             break;
-        case INSTRUCTION_TYPE_JLT:
+        case INSTRUCTION_TYPE_LT:
             fprintf(stderr,"%s %d\n","JLT",inst.operand);
+            fprintf(stderr,"less than flag : %d \n",machine.compare_flag.less_than);
             break;
         case INSTRUCTION_TYPE_SELECT_REGISTER:
             fprintf(stderr,"%s %d\n","SLCTREG",inst.operand);
             break;
         case INSTRUCTION_TYPE_STORE_REGISTER:
             fprintf(stderr,"%s %d\n","STR",inst.operand);
+            break;
+        case INSTRUCTION_TYPE_JEQ:
+            fprintf(stderr,"%s %d\n","JEQ",inst.operand);
+            break;
+        case INSTRUCTION_TYPE_EQ:
+            fprintf(stderr,"%s %d\n","EQ",inst.operand);
+            fprintf(stderr,"equal to flag : %d \n",machine.compare_flag.equal_to);
+            break;
+        case INSTRUCTION_TYPE_ADD_REGISTER:
+            fprintf(stderr,"%s %d\n","REGADD",inst.operand);
+            break;
+        case INSTRUCTION_TYPE_SUBTRACT_REGISTER:
+            fprintf(stderr,"%s %d\n","REGSUB",inst.operand);
             break;
     }
 
@@ -332,11 +401,13 @@ int main(){
 
     while(machine.program_counter >= 0 && machine.program_counter < SIZE_OF(inst_list)){
 
+        
+        fprintf(stderr,"instruction 0x%x\t",machine.program_counter);
         fetch();
 
-        print_inst(machine.current_instruction);
-
         err error = execute_instructions(&machine.current_instruction);
+
+        print_inst(machine.current_instruction);
 
         fprintf(stderr,"%s\n","Stack:");
 
