@@ -1,5 +1,6 @@
 #include "errors.h"
 
+
 const char* err_to_string(program_errors err){
 
     switch(err){
@@ -12,5 +13,6 @@ const char* err_to_string(program_errors err){
         case ERR_INSTRUCTION_REGISTER_BOUND_UNKOWN : return "ERR_INSTRUCTION_REGISTER_BOUND_UNKOWN";
         
     }
+
 
 }
