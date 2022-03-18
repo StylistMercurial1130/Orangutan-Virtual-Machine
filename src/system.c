@@ -16,6 +16,8 @@ static program_errors equal_to(virtual_machine* machine);
 static program_errors jump_less_than(virtual_machine* machine);
 static program_errors jump_greater_than(virtual_machine* machine);
 static program_errors jump_equal_to(virtual_machine* machine);
+static program_errors add_to_reg(virtual_machine* machine);
+static program_errors sub_from_reg(virtual_machine* machine);
 
 static instruction_list inst_list[] = {
     
@@ -27,9 +29,13 @@ static instruction_list inst_list[] = {
     [INSTRUCTION_EQUAL_TO]          =   equal_to,
     [INSTRUCTION_GREATER_THAN]      =   greater_than,
     [INSTRUCTION_LESS_THAN]         =   less_than,
-    [INSTRUCTION_JUMP_LESS_THAN]    =   jump_greater_than,
+    [INSTRUCTION_JUMP_GREATER_THAN] =   jump_greater_than,
     [INSTRUCTION_JUMP_EQUAL_TO]     =   jump_equal_to,
-    [INSTRUCTION_JUMP_GREATER_THAN] =   jump_less_than
+    [INSTRUCTION_JUMP_LESS_THAN]    =   jump_less_than,
+    [INSTRUCTION_SELECT_REGISTER]   =   select_registers,
+    [INSTRUCTION_STORE_REGISTER]    =   store_register,
+    [INSTRUCTION_ADD_TO_REG]        =   add_to_reg,
+    [INSTRUCTION_SUB_FROM_REG]      =   sub_from_reg
 
 };
 
@@ -121,6 +127,8 @@ static program_errors select_registers(virtual_machine* machine){
         
         machine->current_register = machine->current_instruction.operand;
 
+        machine->program_counter++;
+
         return ERR_INSTRUCTION_OK;
 
     } 
@@ -132,6 +140,8 @@ static program_errors select_registers(virtual_machine* machine){
 static program_errors store_register(virtual_machine* machine){
 
     machine->reg[machine->current_register] = machine->current_instruction.operand;    
+
+    machine->program_counter++;
 
     return ERR_INSTRUCTION_OK;
 
@@ -180,6 +190,8 @@ static program_errors greater_than(virtual_machine* machine){
 
     }
 
+    machine->program_counter++;
+
     return ERR_INSTRUCTION_OK;
 
 }
@@ -196,6 +208,8 @@ static program_errors equal_to(virtual_machine* machine){
 
     }
 
+    machine->program_counter++;
+
     return ERR_INSTRUCTION_OK;
 
 }
@@ -208,6 +222,8 @@ static program_errors jump_equal_to(virtual_machine* machine){
 
             machine->program_counter = machine->current_instruction.operand;
 
+        } else {
+            machine->program_counter++;
         }
 
         return ERR_INSTRUCTION_OK;
@@ -226,6 +242,8 @@ static program_errors jump_greater_than(virtual_machine* machine){
 
             machine->program_counter = machine->current_instruction.operand;
 
+        } else {
+            machine->program_counter++;
         }
 
         return ERR_INSTRUCTION_OK;
@@ -244,6 +262,8 @@ static program_errors jump_less_than(virtual_machine* machine){
 
             machine->program_counter = machine->current_instruction.operand;
 
+        } else {
+            machine->program_counter++;
         }
 
         return ERR_INSTRUCTION_OK;
@@ -251,5 +271,22 @@ static program_errors jump_less_than(virtual_machine* machine){
     }
 
     return ERR_SEGMENTATION_FAULT;
+
+}
+
+static program_errors add_to_reg(virtual_machine* machine){
+
+    machine->reg[machine->current_register] += machine->current_instruction.operand;
+
+    return ERR_INSTRUCTION_OK;
+
+}
+
+static program_errors sub_from_reg(virtual_machine* machine){
+
+
+    machine->reg[machine->current_register] -= machine->current_instruction.operand;
+
+    return ERR_INSTRUCTION_OK;
 
 }

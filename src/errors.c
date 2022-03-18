@@ -9,7 +9,8 @@ const char* err_to_string(program_errors err){
         case ERR_UNKOWN_INSTRUCTION : return "ERR_UNKOWN_INSTRUCTION";
         case ERR_SEGMENTATION_FAULT : return "ERR_SEGMENTATION_FAULT";
         case ERR_INSTRUCTION_OK : return "ERR_INSTRUCTION_OK";
-
+        case ERR_INSTRUCTION_REGISTER_BOUND_UNKOWN : return "ERR_INSTRUCTION_REGISTER_BOUND_UNKOWN";
+        
     }
 
 }
